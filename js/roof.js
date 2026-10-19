@@ -115,7 +115,9 @@ export function createRoof({
 
   const surface = new THREE.Mesh(surfaceGeo, surfaceMat);
   surface.castShadow = true;
-  surface.receiveShadow = true;
+  // 曲面接收阴影极易产生 acne（细密黑点）；屋顶主要靠自身法线明暗塑造体积，
+  // 关掉接收阴影，视觉损失极小，但去掉了恼人的噪点
+  surface.receiveShadow = false;
   group.add(surface);
 
   /* ---------- 屋脊材质 ---------- */
