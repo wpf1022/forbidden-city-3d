@@ -33,14 +33,16 @@ function rng(seed) {
   };
 }
 
-/** 在画布上撒噪点，增加材质粗糙感 */
+/** 在画布上撒噪点，增加材质粗糙感
+ *  alpha 为 0-255 的强度上限，除以 255 归一化后再乘随机强度——
+ *  否则 alpha 会大于 1 被钳制成纯黑，纹理上会出现大量黑点。 */
 function grain(ctx, w, h, amount, alpha) {
   const rand = rng(20240601);
   for (let i = 0; i < amount; i++) {
     const x = rand() * w;
     const y = rand() * h;
-    const v = Math.floor(rand() * 90);
-    ctx.fillStyle = `rgba(0,0,0,${(alpha * v) / 255})`;
+    const v = rand();
+    ctx.fillStyle = `rgba(0,0,0,${(alpha / 255) * v})`;
     ctx.fillRect(x, y, 1 + rand() * 2, 1 + rand() * 2);
   }
 }
@@ -86,7 +88,7 @@ export function createRoofTileTexture() {
     ctx.fillRect(0, y + 2, 256, 1);
   }
 
-  grain(ctx, 256, 256, 1400, 40);
+  grain(ctx, 256, 256, 420, 22);
   return finish(canvas, 1, 1);
 }
 
@@ -121,7 +123,7 @@ export function createWallTexture() {
   ctx.fillStyle = skirt;
   ctx.fillRect(0, 210, 256, 46);
 
-  grain(ctx, 256, 256, 1800, 30);
+  grain(ctx, 256, 256, 1800, 26);
   return finish(canvas, 1, 1);
 }
 
