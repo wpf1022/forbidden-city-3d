@@ -32,6 +32,14 @@ import {
 const app = document.getElementById('app');
 const IS_SHOT = new URLSearchParams(location.search).has('shot');
 
+// ?hud=0 —— 隐藏界面元素，用于导出干净的宣传图
+if (new URLSearchParams(location.search).get('hud') === '0') {
+  for (const sel of ['#hud-top', '#hud-panel', '#hud-foot']) {
+    const el = document.querySelector(sel);
+    if (el) el.style.display = 'none';
+  }
+}
+
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
   powerPreference: 'high-performance',
@@ -67,11 +75,24 @@ const VIEWS = {
   b: { pos: [0, 92, 268], target: [0, 22, -24] },
   c: { pos: [176, 138, 336], target: [0, 18, -20] },
   d: { pos: [-92, 60, 128], target: [0, 16, -26] },
+  // 竖屏构图（3:4 / 9:16 用，相机拉远避免两侧被裁）
+  p: { pos: [52, 48, 106], target: [0, 30, -12] },
+  pd: { pos: [54, 40, 58], target: [0, 30, -2] },
+  pw: { pos: [132, 104, 244], target: [0, 26, -14] },
 };
 const preset = VIEWS[new URLSearchParams(location.search).get('view')] || VIEWS.a;
 
 const HOME = new THREE.Vector3(preset.pos[0], preset.pos[1], preset.pos[2]);
 const TARGET = new THREE.Vector3(preset.target[0], preset.target[1], preset.target[2]);
+
+// ?az=<角度> —— 绕中轴转圈，用于生成转台动画的逐帧素材
+const azParam = new URLSearchParams(location.search).get('az');
+if (azParam !== null) {
+  const rad = (parseFloat(azParam) * Math.PI) / 180;
+  const R = 215;
+  HOME.set(Math.sin(rad) * R, 92, Math.cos(rad) * R);
+  TARGET.set(0, 24, -18);
+}
 camera.position.copy(HOME);
 
 const controls = new OrbitControls(camera, renderer.domElement);
