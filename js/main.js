@@ -89,9 +89,9 @@ const TARGET = new THREE.Vector3(preset.target[0], preset.target[1], preset.targ
 const azParam = new URLSearchParams(location.search).get('az');
 if (azParam !== null) {
   const rad = (parseFloat(azParam) * Math.PI) / 180;
-  const R = 215;
-  HOME.set(Math.sin(rad) * R, 92, Math.cos(rad) * R);
-  TARGET.set(0, 24, -18);
+  const R = 136;
+  HOME.set(Math.sin(rad) * R, 60, Math.cos(rad) * R);
+  TARGET.set(0, 20, -16);
 }
 camera.position.copy(HOME);
 
