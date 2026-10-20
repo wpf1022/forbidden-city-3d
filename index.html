@@ -1,59 +1,105 @@
-<!DOCTYPE html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>紫禁城 · 三维复原 | Forbidden City in 3D</title>
-<meta name="description" content="基于 Three.js 程序化建模的紫禁城中轴线三维复原：太和殿、中和殿、保和殿、金水桥。" />
-<link rel="stylesheet" href="./css/style.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>紫禁城 · 中轴 — Forbidden City in 3D</title>
+<meta name="description" content="不用任何建模软件：紫禁城中轴六处建筑的几何与纹理，全部在浏览器里由代码实时生成。">
+<meta name="theme-color" content="#0a0d12">
+<link rel="stylesheet" href="./styles/main.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23090b0f'/%3E%3Cpath d='M8 40 L32 13 L56 40 Z' fill='%23c8a24a'/%3E%3Crect x='13' y='43' width='38' height='7' fill='%23a8853c'/%3E%3C/svg%3E">
+<!--
+  只引入一个运行库：three.js。
+  这里用本地副本而不是 CDN：CDN 会引入一个与作品无关的外部单点故障
+  （国内网络尤其明显），而"零外部资产"正是本项目的记忆点。
+  需要换回 CDN 时，只改这一行即可。
+-->
 <script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-  }
-}
+{ "imports": { "three": "./vendor/three.module.min.js" } }
 </script>
 </head>
 <body>
-  <div id="app"></div>
 
-  <!-- 加载遮罩 -->
-  <div id="loader">
-    <div class="loader-inner">
-      <div class="loader-title">紫禁城</div>
-      <div class="loader-sub">正在营建…</div>
-    </div>
+<div id="stage"></div>
+<div id="labels" aria-hidden="true"></div>
+
+<header class="masthead">
+  <p class="eyebrow">The Forbidden City · Beijing</p>
+  <h1>紫禁城<em>·</em>中轴</h1>
+  <div class="rule"></div>
+  <p class="tagline">午门至保和殿 · 六处主体建筑<span class="tag-extra"> · 全部几何由代码生成</span></p>
+</header>
+
+<nav class="tools" aria-label="场景控制">
+  <button class="tool" data-view="a" title="3/4 近景">近景<em>a</em></button>
+  <button class="tool" data-view="b" title="正南中轴平视">中轴<em>b</em></button>
+  <button class="tool" data-view="c" title="高空全景">全景<em>c</em></button>
+  <button class="tool" data-view="d" title="西侧近景">西侧<em>d</em></button>
+  <span class="sep"></span>
+  <button class="tool" id="btn-night">夜景</button>
+  <button class="tool" id="btn-labels">标注</button>
+  <button class="tool" id="btn-reset" title="回到当前预设的初始位姿">重置</button>
+</nav>
+
+<p class="hint"><span>拖拽</span>旋转　<span>滚轮</span>缩放　<span>右键</span>平移</p>
+
+<footer class="colophon">
+  <p>零外部模型 · 零位图贴图 · 源码约 4 500 行</p>
+  <a class="gh" href="https://github.com/wpf1022/forbidden-city-3d" target="_blank" rel="noreferrer">GitHub</a>
+</footer>
+
+<div id="loading">
+  <div class="load-inner">
+    <p class="load-title">紫禁城 · 中轴</p>
+    <p class="load-note" id="load-note">正在营建…</p>
+    <div class="load-bar"><i></i></div>
   </div>
+</div>
 
-  <!-- 界面 -->
-  <header id="hud-top">
-    <h1>紫禁城<span>·</span>中轴</h1>
-    <p>太和殿 · 中和殿 · 保和殿 · 金水桥</p>
-  </header>
+<noscript>
+  <div class="noscript">此作品需要 JavaScript 与 WebGL 才能进入三维场景。</div>
+</noscript>
 
-  <nav id="hud-panel">
-    <button data-action="rotate" class="on">自动环绕</button>
-    <button data-action="night">夜景</button>
-    <button data-action="reset">重置视角</button>
-    <button data-action="labels" class="on">建筑标注</button>
-  </nav>
+<script>
+/* 引导守卫：模块脚本一旦加载失败（最典型的是 file:// 双击打开），
+   ES Module 会被同源策略拦下，页面上什么都不会发生——
+   所以这里在模块之外先给出可读的原因，避免用户对着"正在营建…"干等。 */
+(function () {
+  var loading = document.getElementById('loading');
+  var note = document.getElementById('load-note');
+  function fail(html) {
+    if (!note || note.dataset.done) return;
+    note.dataset.done = '1';
+    note.innerHTML = html;
+    loading.classList.add('is-failed');
+  }
 
-  <footer id="hud-foot">
-    <span>拖拽旋转 · 滚轮缩放 · 右键平移</span>
-    <span id="stat"></span>
-  </footer>
+  if (location.protocol === 'file:') {
+    fail('浏览器不允许 <b>file://</b> 页面加载 ES Module，所以场景不会启动。' +
+      '请用本地静态服务器打开：<br>' +
+      '<span class="hint-code">python -m http.server 8080</span><br>' +
+      '然后访问 <span class="hint-code">http://localhost:8080/</span>' +
+      '<span class="hint-sub">Windows 下也可以直接双击项目里的 start.cmd</span>');
+    return;
+  }
 
-  <!-- 错误浮层：任何脚本异常都会显示在这里，便于排查 -->
-  <div id="errbox"></div>
+  window.addEventListener('error', function (e) {
+    var t = e.target;
+    if (t && (t.tagName === 'SCRIPT' || t.tagName === 'LINK')) {
+      fail('资源加载失败：<br><span class="hint-code">' + (t.src || t.href) + '</span>' +
+        '<span class="hint-sub">请从项目根目录启动服务器，并确认 vendor/ 目录完整</span>');
+    }
+  }, true);
 
-  <script>
-    window.addEventListener('error', function (e) {
-      var box = document.getElementById('errbox');
-      box.style.display = 'block';
-      box.textContent = '脚本错误: ' + (e.message || e.type);
-    });
-  </script>
-  <script type="module" src="./js/main.js"></script>
+  setTimeout(function () {
+    if (!window.__FC_READY__) {
+      fail('加载超时。请打开浏览器控制台查看报错，' +
+        '并确认 <span class="hint-code">vendor/three.module.min.js</span> 可以访问。');
+    }
+  }, 15000);
+})();
+</script>
+
+<script type="module" src="./src/main.js"></script>
 </body>
 </html>

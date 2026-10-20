@@ -1,2 +1,4 @@
-﻿social/
-dev/
+﻿# 开发中间产物
+shots/
+tools/_*
+.dsh-cache/
